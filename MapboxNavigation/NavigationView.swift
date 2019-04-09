@@ -1,7 +1,6 @@
 import UIKit
 import MapboxDirections
 
-
 /**
  A view that represents the root view of the MapboxNavigation drop-in UI.
  
@@ -41,6 +40,8 @@ open class NavigationView: UIView {
     
     private enum Constants {
         static let endOfRouteHeight: CGFloat = 260.0
+        static let feedbackTopConstraintPadding: CGFloat = 10.0
+        static let buttonSize: CGSize = 50.0
         static let buttonSpacing: CGFloat = 8.0
     }
     
@@ -66,9 +67,14 @@ open class NavigationView: UIView {
         static let feedback = UIImage(named: "feedback", in: .mapboxNavigation, compatibleWith: nil)!.withRenderingMode(.alwaysTemplate)
     }
     
+    private enum Actions {
+        static let cancelButton: Selector = #selector(NavigationView.cancelButtonTapped(_:))
+    }
+    
     lazy var mapView: NavigationMapView = {
         let map: NavigationMapView = .forAutoLayout(frame: self.bounds)
-        map.navigationMapViewDelegate = delegate
+        map.delegate = delegate
+        map.navigationMapDelegate = delegate
         map.courseTrackingDelegate = delegate
         map.showsUserLocation = true
         return map
@@ -113,7 +119,13 @@ open class NavigationView: UIView {
         return view
     }()
     
-    lazy var bottomBannerContainerView: BottomBannerContainerView = .forAutoLayout()
+    lazy var bottomBannerContentView: BottomBannerContentView = .forAutoLayout()
+    lazy var bottomBannerView: BottomBannerView = {
+        let view: BottomBannerView = .forAutoLayout()
+        view.cancelButton.addTarget(self, action: Actions.cancelButton, for: .touchUpInside)
+        return view
+        }()
+    
 
     weak var delegate: NavigationViewDelegate? {
         didSet {
@@ -174,7 +186,8 @@ open class NavigationView: UIView {
     
     func setupContainers() {
         let containers: [(UIView, UIView)] = [
-            (instructionsBannerContentView, instructionsBannerView)
+            (instructionsBannerContentView, instructionsBannerView),
+            (bottomBannerContentView, bottomBannerView)
         ]
         containers.forEach { $0.addSubview($1) }
     }
@@ -189,7 +202,7 @@ open class NavigationView: UIView {
             floatingStackView,
             resumeButton,
             wayNameView,
-            bottomBannerContainerView,
+            bottomBannerContentView,
             instructionsBannerContentView
         ]
         
@@ -199,12 +212,17 @@ open class NavigationView: UIView {
     open override func prepareForInterfaceBuilder() {
         super.prepareForInterfaceBuilder()
         DayStyle().apply()
-        [mapView, instructionsBannerView, lanesView, bottomBannerContainerView, nextBannerView].forEach( { $0.prepareForInterfaceBuilder() })
+        [mapView, instructionsBannerView, lanesView, bottomBannerView, nextBannerView].forEach { $0.prepareForInterfaceBuilder() }
         wayNameView.text = "Street Label"
     }
     
+    @objc func cancelButtonTapped(_ sender: CancelButton) {
+        delegate?.navigationView(self, didTapCancelButton: bottomBannerView.cancelButton)
+    }
+    
     private func updateDelegates() {
-        mapView.navigationMapViewDelegate = delegate
+        mapView.delegate = delegate
+        mapView.navigationMapDelegate = delegate
         mapView.courseTrackingDelegate = delegate
         instructionsBannerView.delegate = delegate
         instructionsBannerView.instructionDelegate = delegate
@@ -213,6 +231,6 @@ open class NavigationView: UIView {
     }
 }
 
-protocol NavigationViewDelegate: NavigationMapViewDelegate, StatusViewDelegate, InstructionsBannerViewDelegate, NavigationMapViewCourseTrackingDelegate, VisualInstructionDelegate {
+protocol NavigationViewDelegate: NavigationMapViewDelegate, MGLMapViewDelegate, StatusViewDelegate, InstructionsBannerViewDelegate, NavigationMapViewCourseTrackingDelegate, VisualInstructionDelegate {
     func navigationView(_ view: NavigationView, didTapCancelButton: CancelButton)
 }

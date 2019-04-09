@@ -65,17 +65,7 @@ extension BaseInstructionsBannerView {
         
         addTarget(self, action: #selector(BaseInstructionsBannerView.tappedInstructionsBanner(_:)), for: .touchUpInside)
 
-        let swipeLeftGesture = UISwipeGestureRecognizer(target: self, action: #selector(BaseInstructionsBannerView.swipedInstructionBannerLeft(_:)))
-        swipeLeftGesture.direction = .left
-        addGestureRecognizer(swipeLeftGesture)
-        
-        let swipeRightGesture = UISwipeGestureRecognizer(target: self, action: #selector(BaseInstructionsBannerView.swipedInstructionBannerRight(_:)))
-        swipeRightGesture.direction = .right
-        addGestureRecognizer(swipeRightGesture)
-        
-        let swipeDownGesture = UISwipeGestureRecognizer(target: self, action: #selector(BaseInstructionsBannerView.swipedInstructionBannerDown(_:)))
-        swipeDownGesture.direction = .down
-        addGestureRecognizer(swipeDownGesture)
+        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(BaseInstructionsBannerView.draggedInstructionsBanner(_:))))
     }
     
     func setupLayout() {

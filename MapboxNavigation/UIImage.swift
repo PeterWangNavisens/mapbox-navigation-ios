@@ -1,21 +1,13 @@
 import Foundation
 
 extension UIImage {
-    public func roundedWithBorder(width: CGFloat, color: UIColor) -> UIImage? {
-        let square = CGSize(width: min(size.width, size.height) + width * 3, height: min(size.width, size.height) + width * 3)
-        let imageView = UIImageView(frame: CGRect(origin: .zero, size: square))
-        imageView.contentMode = .center
-        imageView.image = self
-        imageView.layer.cornerRadius = square.width/2
-        imageView.layer.masksToBounds = true
-        imageView.layer.borderWidth = width
-        imageView.layer.backgroundColor = color.cgColor
-        imageView.layer.borderColor = color.cgColor
-        UIGraphicsBeginImageContextWithOptions(imageView.bounds.size, false, scale)
-        defer { UIGraphicsEndImageContext() }
-        guard let context = UIGraphicsGetCurrentContext() else { return nil }
-        imageView.layer.render(in: context)
-        return UIGraphicsGetImageFromCurrentImageContext()
+    func tinted(_ tintColor: UIColor) -> UIImage? {
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        tintColor.set()
+        draw(in: CGRect(origin: .zero, size: size))
+        let tintedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return tintedImage
     }
     
     func insert(text: NSString, color: UIColor, font: UIFont, atPoint: CGPoint, scale: CGFloat) -> UIImage? {
@@ -24,7 +16,7 @@ extension UIImage {
         let textStyle = NSMutableParagraphStyle()
         textStyle.alignment = .center
         
-        let textFontAttributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color, .paragraphStyle: textStyle]
+        let textFontAttributes: [NSAttributedStringKey: Any] = [.font: font, .foregroundColor: color, .paragraphStyle: textStyle]
         draw(in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
         
         let rect = CGRect(x: atPoint.x, y: atPoint.y, width: size.width, height: size.height)

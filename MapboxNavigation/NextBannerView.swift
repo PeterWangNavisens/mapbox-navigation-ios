@@ -9,7 +9,7 @@ open class NextInstructionLabel: InstructionLabel { }
 /// :nodoc:
 @IBDesignable
 @objc(MBNextBannerView)
-open class NextBannerView: UIView, NavigationComponent {
+open class NextBannerView: UIView {
     
     weak var maneuverView: ManeuverView!
     weak var instructionLabel: NextInstructionLabel!
@@ -89,10 +89,6 @@ open class NextBannerView: UIView, NavigationComponent {
         bottomSeparatorView.leadingAnchor.constraint(equalTo: leadingAnchor).isActive = true
         bottomSeparatorView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
         bottomSeparatorView.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale).isActive = true
-    }
-    
-    @objc public func navigationService(_ service: NavigationService, didPassVisualInstructionPoint instruction: VisualInstructionBanner, routeProgress: RouteProgress) {
-        update(for: instruction)
     }
     
     /**

@@ -64,33 +64,6 @@ struct RoundingTable {
         let unit: LengthFormatter.Unit
         let maximumFractionDigits: Int
         
-        @available(iOS 10.0, *)
-        func measurement(of distance: CLLocationDistance) -> Measurement<UnitLength> {
-            let unitLength: UnitLength
-            switch unit {
-            case .millimeter:
-                unitLength = .millimeters
-            case .centimeter:
-                unitLength = .centimeters
-            case .meter:
-                unitLength = .meters
-            case .kilometer:
-                unitLength = .kilometers
-            case .inch:
-                unitLength = .inches
-            case .foot:
-                unitLength = .feet
-            case .yard:
-                unitLength = .yards
-            case .mile:
-                unitLength = .miles
-            }
-            var measurement = Measurement(value: distance, unit: .meters).converted(to: unitLength)
-            measurement.value.round(roundingIncrement: roundingIncrement)
-            measurement.value.round(precision: pow(10, Double(maximumFractionDigits)))
-            return measurement
-        }
-        
         func localizedDistanceString(for distance: CLLocationDistance, using formatter: DistanceFormatter) -> String {
             switch unit {
             case .mile:
@@ -119,8 +92,8 @@ struct RoundingTable {
     }
 }
 
-extension NSAttributedString.Key {
-    public static let quantity = NSAttributedString.Key(rawValue: "MBQuantity")
+extension NSAttributedStringKey {
+    public static let quantity = NSAttributedStringKey(rawValue: "MBQuantity")
 }
 
 /// Provides appropriately formatted, localized descriptions of linear distances.
@@ -214,19 +187,12 @@ open class DistanceFormatter: LengthFormatter {
         return threshold.localizedDistanceString(for: distance, using: self)
     }
     
-    @available(iOS 10.0, *)
-    @objc(measurementOfDistance:)
-    public func measurement(of distance: CLLocationDistance) -> Measurement<UnitLength> {
-        let threshold = self.threshold(for: distance)
-        return threshold.measurement(of: distance)
-    }
-    
     /**
      Returns an attributed string containing the formatted, converted distance.
      
      `NSAttributedStringKey.quantity` is applied to the numeric quantity.
      */
-    @objc open override func attributedString(for obj: Any, withDefaultAttributes attrs: [NSAttributedString.Key : Any]? = nil) -> NSAttributedString? {
+    @objc open override func attributedString(for obj: Any, withDefaultAttributes attrs: [NSAttributedStringKey : Any]? = nil) -> NSAttributedString? {
         guard let distance = obj as? CLLocationDistance else {
             return nil
         }
@@ -242,32 +208,5 @@ open class DistanceFormatter: LengthFormatter {
             }
         }
         return attributedString
-    }
-}
-
-extension Double {
-    
-    func rounded(precision: Double) -> Double {
-        if precision == 0 {
-            return Double(Int(rounded()))
-        }
-        
-        return (self * precision).rounded() / precision
-    }
-    
-    mutating func round(precision: Double) {
-        self = rounded(precision: precision)
-    }
-    
-    func rounded(roundingIncrement: Double) -> Double {
-        if roundingIncrement == 0 {
-            return self
-        }
-        
-        return (self / roundingIncrement).rounded() * roundingIncrement
-    }
-    
-    mutating func round(roundingIncrement: Double) {
-        self = rounded(roundingIncrement: roundingIncrement)
     }
 }

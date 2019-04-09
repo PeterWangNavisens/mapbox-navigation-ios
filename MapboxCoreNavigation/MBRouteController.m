@@ -12,12 +12,9 @@ const MBRouteControllerNotificationUserInfoKey MBRouteControllerRouteProgressKey
 const MBRouteControllerNotificationUserInfoKey MBRouteControllerLocationKey                   = @"location";
 const MBRouteControllerNotificationUserInfoKey MBRouteControllerRawLocationKey                = @"rawLocation";
 const MBRouteControllerNotificationUserInfoKey MBRouteControllerRoutingErrorKey               = @"error";
-const MBRouteControllerNotificationUserInfoKey MBRouteControllerVisualInstructionKey          = @"visualInstruction";
-const MBRouteControllerNotificationUserInfoKey MBRouteControllerSpokenInstructionKey          = @"spokenInstruction";
 const MBRouteControllerNotificationUserInfoKey MBRouteControllerIsProactiveKey                = @"RouteControllerDidFindFasterRoute";
 
 NSString *const MBErrorDomain = @"ErrorDomain";
-
 
 @implementation NSString (MD5)
 - (NSString * _Nonnull)md5 {
@@ -33,4 +30,3 @@ NSString *const MBErrorDomain = @"ErrorDomain";
     return  output;
 }
 @end
-

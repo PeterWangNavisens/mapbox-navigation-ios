@@ -8,7 +8,7 @@ public class GenericRouteShield: StylableView {
     static let labelFontSizeScaleFactor: CGFloat = 2.0/3.0
     
     //The color to use for the text and border.
-    @objc public dynamic var foregroundColor: UIColor? {
+    @objc dynamic var foregroundColor: UIColor? {
         didSet {
             layer.borderColor = foregroundColor?.cgColor
             routeLabel.textColor = foregroundColor
@@ -21,7 +21,7 @@ public class GenericRouteShield: StylableView {
         let label: UILabel = .forAutoLayout()
         label.text = routeText
         label.textColor = .black
-        label.font = UIFont.boldSystemFont(ofSize: pointSize * GenericRouteShield.labelFontSizeScaleFactor)
+        label.font = UIFont.boldSystemFont(ofSize: pointSize * ExitView.labelFontSizeScaleFactor)
         
         return label
     }()
@@ -37,7 +37,7 @@ public class GenericRouteShield: StylableView {
     //The size of the text the view attachment is contained within.
     var pointSize: CGFloat {
         didSet {
-            routeLabel.font = routeLabel.font.withSize(pointSize * GenericRouteShield.labelFontSizeScaleFactor)
+            routeLabel.font = routeLabel.font.withSize(pointSize * ExitView.labelFontSizeScaleFactor)
             rebuildConstraints()
         }
     }

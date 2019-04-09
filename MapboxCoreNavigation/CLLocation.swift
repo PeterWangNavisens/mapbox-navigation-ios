@@ -1,16 +1,12 @@
 import CoreLocation
 import MapboxDirections
-import MapboxNavigationNative
 import Turf
 
 extension CLLocation {
     
     var isQualified: Bool {
-        return 0...100 ~= horizontalAccuracy
-    }
-    
-    var isQualifiedForStartingRoute: Bool {
-        return 0...20 ~= horizontalAccuracy
+        return
+            0...100 ~= horizontalAccuracy
     }
     
     /// Returns a dictionary representation of the location.
@@ -27,14 +23,40 @@ extension CLLocation {
         return locationDictionary
     }
     
-    convenience init(_ location: MBFixLocation) {
-        self.init(coordinate: location.coordinate,
-                  altitude: location.altitude?.doubleValue ?? 0,
-                  horizontalAccuracy: location.accuracyHorizontal?.doubleValue ?? -1,
-                  verticalAccuracy: 0,
-                  course: location.bearing?.doubleValue ?? -1,
-                  speed: location.speed?.doubleValue ?? -1,
-                  timestamp: location.time)
+    /**
+     Intializes a CLLocation from a dictionary.
+     
+     - parameter dictionary: A dictionary representation of the location.
+     */
+    public convenience init(dictionary: [String: Any]) {
+        let latitude = dictionary["latitude"] as? CLLocationDegrees ?? dictionary["lat"] as? CLLocationDegrees ?? 0
+        let longitude = dictionary["longitude"] as? CLLocationDegrees ?? dictionary["lon"] as? CLLocationDegrees ?? dictionary["lng"] as? CLLocationDegrees ?? 0
+        let altitude = dictionary["altitude"] as! CLLocationDistance
+        
+        let horizontalAccuracy = dictionary["horizontalAccuracy"] as! CLLocationAccuracy
+        let verticalAccuracy = dictionary["verticalAccuracy"] as! CLLocationAccuracy
+        
+        let speed = dictionary["speed"] as! CLLocationSpeed
+        let course = dictionary["course"] as! CLLocationDirection
+        
+        var date: Date?
+        
+        // Parse timestamp as unix timestamp or ISO8601Date
+        if let timestamp = dictionary["timestamp"] as? TimeInterval {
+            date = Date(timeIntervalSince1970: timestamp)
+        } else if let timestamp = dictionary["timestamp"] as? String {
+            date = timestamp.ISO8601Date
+        }
+        
+        let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        
+        self.init(coordinate: coordinate,
+                  altitude: altitude,
+                  horizontalAccuracy: horizontalAccuracy,
+                  verticalAccuracy: verticalAccuracy,
+                  course: course,
+                  speed: speed,
+                  timestamp: date!)
     }
     
     /**
@@ -49,15 +71,16 @@ extension CLLocation {
     
     //MARK: - Route Snapping
     
-    func snapped(to routeProgress: RouteProgress) -> CLLocation? {
-        let legProgress = routeProgress.currentLegProgress
-        let coords = coordinates(for: routeProgress)
+    func snapped(to legProgress: RouteLegProgress) -> CLLocation? {
+        let coords = coordinates(for: legProgress)
+        let distanceRemaining = legProgress.currentStepProgress.distanceRemaining
         
-        guard let closest = Polyline(coords).closestCoordinate(to: coordinate) else { return nil }
-        guard let calculatedCourseForLocationOnStep = interpolatedCourse(along: coords) else { return nil }
+        let lineSlicedFromUser = Polyline(coords).sliced(from: coordinate)
+        guard let projectedLocation = lineSlicedFromUser.coordinateFromStart(distance: projectedDistance(for: distanceRemaining)) else { return nil }
+        guard let calculatedCourseForLocationOnStep = interpolatedCourse(along: coords, customClosestCoordinate: projectedLocation) else { return nil }
         
         let userCourse = calculatedCourseForLocationOnStep
-        let userCoordinate = closest.coordinate
+        let userCoordinate = projectedLocation
         guard let firstCoordinate = legProgress.leg.steps.first?.coordinates?.first else { return nil }
         
         guard shouldSnap(toRouteWith: calculatedCourseForLocationOnStep, distanceToFirstCoordinateOnLeg: self.coordinate.distance(to: firstCoordinate)) else { return nil }
@@ -68,14 +91,12 @@ extension CLLocation {
     /**
      Calculates the proper coordinates to use when calculating a snapped location.
      */
-    func coordinates(for routeProgress: RouteProgress) -> [CLLocationCoordinate2D] {
-        let legProgress = routeProgress.currentLegProgress
-        let nearbyCoordinates = routeProgress.nearbyCoordinates
+    func coordinates(for legProgress: RouteLegProgress) -> [CLLocationCoordinate2D] {
         let stepCoordinates = legProgress.currentStep.coordinates!
         
         // If the upcoming maneuver a sharp turn, only look at the current step for snapping.
         // Otherwise, we may get false positives from nearby step coordinates
-        if let upcomingStep = legProgress.upcomingStep,
+        if let upcomingStep = legProgress.upComingStep,
             let initialHeading = upcomingStep.initialHeading,
             let finalHeading = upcomingStep.finalHeading {
             
@@ -83,8 +104,7 @@ extension CLLocation {
             if initialHeading.clockwiseDifference(from: finalHeading) > 180 - RouteSnappingMaxManipulatedCourseAngle {
                 return stepCoordinates
             }
-            
-            
+
             if finalHeading.difference(from: course) > RouteControllerMaximumAllowedDegreeOffsetForTurnCompletion {
                 return stepCoordinates
             }
@@ -94,17 +114,20 @@ extension CLLocation {
             return stepCoordinates
         }
         
-        return nearbyCoordinates
+        return legProgress.nearbyCoordinates
     }
     
+    func projectedDistance(for distanceRemaining: CLLocationDistance) -> CLLocationDistance {
+        return max(speed * RouteControllerDeadReckoningTimeInterval, 0)
+    }
     
     /**
      Given a location and a series of coordinates, compute what the course should be for a the location.
      */
-    func interpolatedCourse(along coordinates: [CLLocationCoordinate2D]) -> CLLocationDirection? {
+    func interpolatedCourse(along coordinates: [CLLocationCoordinate2D], customClosestCoordinate: CLLocationCoordinate2D? = nil) -> CLLocationDirection? {
         let nearByPolyline = Polyline(coordinates)
         
-        guard let closest = nearByPolyline.closestCoordinate(to: coordinate) else { return nil }
+        guard let closest = nearByPolyline.closestCoordinate(to: customClosestCoordinate ?? coordinate) else { return nil }
         
         let slicedLineBehind = Polyline(coordinates.reversed()).sliced(from: closest.coordinate, to: coordinates.reversed().last)
         let slicedLineInFront = nearByPolyline.sliced(from: closest.coordinate, to: coordinates.last)
@@ -153,9 +176,5 @@ extension CLLocation {
             return false
         }
         return true
-    }
-    
-    func shifted(to newTimestamp: Date) -> CLLocation {
-        return CLLocation(coordinate: coordinate, altitude: altitude, horizontalAccuracy: horizontalAccuracy, verticalAccuracy: verticalAccuracy, course: course, speed: speed, timestamp: newTimestamp)
     }
 }

@@ -15,8 +15,7 @@ class StyleManagerTests: XCTestCase {
     
     override func setUp() {
         super.setUp()
-        styleManager = StyleManager()
-        styleManager.delegate = self
+        styleManager = StyleManager(self)
         styleManager.automaticallyAdjustsStyleForTimeOfDay = true
     }
     
@@ -127,12 +126,10 @@ class StyleManagerTests: XCTestCase {
 }
 
 extension StyleManagerTests: StyleManagerDelegate {
-    @objc public func styleManagerDidRefreshAppearance(_ styleManager: StyleManager) { }
-    @objc(styleManager:didApplyStyle:)
-    public func styleManager(_ styleManager: StyleManager, didApply style: Style) { }
+    func styleManagerDidRefreshAppearance(_ styleManager: StyleManager) { }
+    func styleManager(_ styleManager: StyleManager, didApply style: Style) { }
     
-    @objc(locationForStyleManager:)
-    public func location(for styleManager: StyleManager) -> CLLocation? {
+    func locationFor(styleManager: StyleManager) -> CLLocation? {
         return location
     }
 }

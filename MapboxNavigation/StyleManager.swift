@@ -9,14 +9,12 @@ public protocol StyleManagerDelegate: NSObjectProtocol {
     /**
      Asks the delegate for a location to use when calculating sunset and sunrise.
      */
-    @objc(locationForStyleManager:)
-    func location(for styleManager: StyleManager) -> CLLocation?
+    @objc func locationFor(styleManager: StyleManager) -> CLLocation?
     
     /**
      Informs the delegate that a style was applied.
      */
-    @objc(styleManager:didApplyStyle:)
-    optional func styleManager(_ styleManager: StyleManager, didApply style: Style)
+    @objc optional func styleManager(_ styleManager: StyleManager, didApply style: Style)
     
     /**
      Informs the delegate that the manager forcefully refreshed UIAppearance.
@@ -66,7 +64,13 @@ open class StyleManager: NSObject {
     
     var currentStyleType: StyleType?
     
-    @objc public override init() {
+    /**
+     Initializes a new `StyleManager`.
+     
+     - parameter delegate: The receiver’s delegate
+     */
+    required public init(_ delegate: StyleManagerDelegate) {
+        self.delegate = delegate
         super.init()
         resumeNotifications()
         resetTimeOfDayTimer()
@@ -78,20 +82,20 @@ open class StyleManager: NSObject {
     }
     
     func resumeNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(timeOfDayChanged), name: UIApplication.significantTimeChangeNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(preferredContentSizeChanged(_:)), name: UIContentSizeCategory.didChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(timeOfDayChanged), name: .UIApplicationSignificantTimeChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(preferredContentSizeChanged(_:)), name: .UIContentSizeCategoryDidChange, object: nil)
     }
     
     func suspendNotifications() {
-        NotificationCenter.default.removeObserver(self, name: UIContentSizeCategory.didChangeNotification, object: nil)
-        NotificationCenter.default.removeObserver(self, name: UIApplication.significantTimeChangeNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .UIContentSizeCategoryDidChange, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .UIApplicationSignificantTimeChange, object: nil)
     }
     
     func resetTimeOfDayTimer() {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(timeOfDayChanged), object: nil)
         
         guard automaticallyAdjustsStyleForTimeOfDay && styles.count > 1 else { return }
-        guard let location = delegate?.location(for:self) else { return }
+        guard let location = delegate?.locationFor(styleManager: self) else { return }
         
         guard let solar = Solar(date: date, coordinate: location.coordinate),
             let sunrise = solar.sunrise,
@@ -133,7 +137,7 @@ open class StyleManager: NSObject {
     }
     
     func applyStyle() {
-        guard let location = delegate?.location(for: self) else {
+        guard let location = delegate?.locationFor(styleManager: self) else {
             // We can't calculate sunset or sunrise w/o a location so just apply the first style
             if let style = styles.first, currentStyleType != style.styleType {
                 currentStyleType = style.styleType
@@ -168,7 +172,7 @@ open class StyleManager: NSObject {
     }
     
     func forceRefreshAppearanceIfNeeded() {
-        guard let location = delegate?.location(for: self) else { return }
+        guard let location = delegate?.locationFor(styleManager: self) else { return }
         
         let styleTypeForLocation = styleType(for: location)
         

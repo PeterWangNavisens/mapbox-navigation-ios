@@ -24,11 +24,11 @@ MINOR_VERSION=$( echo ${SHORT_VERSION} | grep -Eo '^\d+\.\d+' )
 DEFAULT_THEME="docs/theme"
 THEME=${JAZZY_THEME:-$DEFAULT_THEME}
 
-BASE_URL="https://docs.mapbox.com/ios/api"
+BASE_URL="https://www.mapbox.com/mapbox-navigation-ios"
 
 # Link to directions documentation
 DIRECTIONS_VERSION=$(grep 'MapboxDirections.swift' Cartfile.resolved | grep -oE '"v.+?"' | grep -oE '[^"v]+')
-DIRECTIONS_SYMBOLS="ComponentRepresentable|CoordinateBounds|Directions|DirectionsOptions|DirectionsResult|Intersection|Lane|LaneIndicationComponent|Match|MatchOptions|RoadClasses|Route|RouteLeg|RouteOptions|RouteStep|SpokenInstruction|Tracepoint|VisualInstruction|VisualInstructionBanner|VisualInstructionComponent|Waypoint"
+DIRECTIONS_SYMBOLS="ComponentRepresentable|Directions|DirectionsOptions|DirectionsResult|Intersection|Lane|Match|MatchOptions|RoadClasses|Route|RouteLeg|RouteOptions|RouteStep|SpokenInstruction|Tracepoint|VisualInstruction|VisualInstructionBanner|VisualInstructionComponent|Waypoint"
 
 rm -rf ${OUTPUT}
 mkdir -p ${OUTPUT}
@@ -43,12 +43,6 @@ perl -pi -e "s/\\$\\{MINOR_VERSION\\}/${MINOR_VERSION}/" "${README}"
 # http://stackoverflow.com/a/4858011/4585461
 echo "## Changes in version ${RELEASE_VERSION}" >> "${README}"
 sed -n -e '/^## /{' -e ':a' -e 'n' -e '/^## /q' -e 'p' -e 'ba' -e '}' CHANGELOG.md >> "${README}"
-
-# Blow away any platform-based availability attributes, since everything is
-# compatible enough to be documented.
-# https://github.com/mapbox/mapbox-navigation-ios/issues/1682
-find Mapbox{Core,}Navigation/ -name *.swift -exec \
-    perl -pi -e 's/\@available\s*\(\s*iOS \d+.\d,.*?\)//' {} \;
 
 jazzy \
     --podspec MapboxNavigation-Documentation.podspec \

@@ -3,11 +3,8 @@ import CoreLocation
 import MapboxDirections
 import UIKit.UIDevice
 
-/**
- `SessionState` is a struct which stores information needed to send to the Mapbox telemetry platform.
- */
-struct SessionState {
 
+struct SessionState {
     let identifier = UUID()
     var departureTimestamp: Date?
     var arrivalTimestamp: Date?
@@ -34,8 +31,6 @@ struct SessionState {
     private(set) var lastTimeInForeground = Date()
     private(set) var lastTimeInBackground = Date()
     
-    private var lastReportedWaypoint: Waypoint?
-    
     var pastLocations = FixedLengthQueue<CLLocation>(length: 40)
     
     init(currentRoute: Route, originalRoute: Route) {
@@ -53,7 +48,7 @@ struct SessionState {
         }
     }
     
-    public mutating func reportChange(to applicationState: UIApplication.State) {
+    public mutating func reportChange(to applicationState: UIApplicationState) {
         if applicationState == .active {
             timeSpentInForeground += abs(lastTimeInBackground.timeIntervalSinceNow)
             

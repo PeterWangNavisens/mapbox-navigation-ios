@@ -1,9 +1,7 @@
 import XCTest
 import MapboxDirections
-@testable import TestHelper
 @testable import MapboxCoreNavigation
 @testable import MapboxNavigation
-
 
 class StepsViewControllerTests: XCTestCase {
     
@@ -16,13 +14,12 @@ class StepsViewControllerTests: XCTestCase {
         
         let bogusToken = "pk.feedCafeDeadBeefBadeBede"
         let directions = Directions(accessToken: bogusToken)
-        let dataSource = RouteControllerDataSourceFake()
-        
-        let routeController = RouteController(along: initialRoute, directions: directions, dataSource: dataSource)
+
+        let routeController = RouteController(along: initialRoute, directions: directions)
         
         let stepsViewController = StepsViewController(routeProgress: routeController.routeProgress)
         
-        let firstCoord = routeController.routeProgress.nearbyCoordinates.first!
+        let firstCoord = routeController.routeProgress.currentLegProgress.nearbyCoordinates.first!
         let firstLocation = CLLocation(coordinate: firstCoord, altitude: 5, horizontalAccuracy: 10, verticalAccuracy: 5, course: 20, speed: 4, timestamp: Date())
         
         let lastCoord = routeController.routeProgress.currentLegProgress.remainingSteps.last!.coordinates!.first!
@@ -43,10 +40,10 @@ class StepsViewControllerTests: XCTestCase {
         
         let stepsViewController = dependencies.stepsViewController
 
-        XCTAssertNotNil(stepsViewController.view, "StepsViewController not initiated properly")
-//        measure {
-//            // Measure Performance - stepsViewController.rebuildDataSourceIfNecessary()
-//        }
+        measure {
+            // Measure Performance - stepsViewController.rebuildDataSourceIfNecessary()
+            XCTAssertNotNil(stepsViewController.view, "StepsViewController not initiated properly")
+        }
         
         let containsStepsTableView = stepsViewController.view.subviews.contains(stepsViewController.tableView)
         XCTAssertTrue(containsStepsTableView, "StepsViewController does not have a table subview")

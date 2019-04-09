@@ -147,7 +147,7 @@ class InstructionPresenter {
         }
         
         // Let's download the shield
-        shieldImageForComponent(shield, in: repository, completion: onImageDownload)
+        shieldImageForComponent(shield, in: repository, height: dataSource.shieldHeight, completion: onImageDownload)
         
         //Return nothing in the meantime, triggering downstream behavior (generic shield or text)
         return nil
@@ -158,7 +158,7 @@ class InstructionPresenter {
         return NSAttributedString(string: text, attributes: attributes(for: dataSource))
     }
     
-    private func shieldImageForComponent(_ component: VisualInstructionComponent, in repository: ImageRepository, completion: @escaping ImageDownloadCompletion) {
+    private func shieldImageForComponent(_ component: VisualInstructionComponent, in repository: ImageRepository, height: CGFloat, completion: @escaping ImageDownloadCompletion) {
         guard let imageURL = component.imageURL, let shieldKey = component.cacheKey else {
             return
         }
@@ -166,7 +166,23 @@ class InstructionPresenter {
         repository.imageWithURL(imageURL, cacheKey: shieldKey, completion: completion )
     }
 
-    private func attributes(for dataSource: InstructionPresenterDataSource) -> [NSAttributedString.Key: Any] {
+    private func instructionHasDownloadedAllShields() -> Bool {
+        let textComponents = instruction.components.compactMap { $0 as? VisualInstructionComponent }
+        guard !textComponents.isEmpty else { return false }
+        
+        for component in textComponents {
+            guard let key = component.cacheKey else {
+                continue
+            }
+
+            if imageRepository.cachedImageForKey(key) == nil {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func attributes(for dataSource: InstructionPresenterDataSource) -> [NSAttributedStringKey: Any] {
         return [.font: dataSource.font as Any, .foregroundColor: dataSource.textColor as Any]
     }
 
@@ -194,17 +210,16 @@ class InstructionPresenter {
         }
         
         attachment.font = dataSource.font
-
+        
         return NSAttributedString(attachment: attachment)
     }
     
     private func exitShield(side: ExitSide = .right, text: String, component: VisualInstructionComponent, dataSource: DataSource) -> NSAttributedString? {
         guard let cacheKey = component.cacheKey else { return nil }
         
-
         let additionalKey = ExitView.criticalHash(side: side, dataSource: dataSource)
         let attachment = ExitAttachment()
-
+        
         let key = [cacheKey, additionalKey].joined(separator: "-")
         if let image = imageRepository.cachedImageForKey(key) {
             attachment.image = image
@@ -221,7 +236,6 @@ class InstructionPresenter {
     }
     
     private func completeShieldDownload(_ image: UIImage?) {
-        guard image != nil else { return }
         //We *must* be on main thread here, because attributedText() looks at object properties only accessible on main thread.
         DispatchQueue.main.async {
             self.onShieldDownload?(self.attributedText()) //FIXME: Can we work with the image directly?
@@ -229,14 +243,9 @@ class InstructionPresenter {
     }
     
     private func takeSnapshot(on view: UIView) -> UIImage? {
-        let window: UIWindow
-        if let hostView = dataSource as? UIView, let hostWindow = hostView.window {
-            window = hostWindow
-        } else {
-            window = UIApplication.shared.delegate!.window!!
-        }
+        let window = UIApplication.shared.delegate!.window!!
         
-        // Temporarily add the view to the view hierarchy for UIAppearance to work its magic.
+        //We have to temporarily add the view to the view heirarchy in order for UIAppearance to work it's magic.
         window.addSubview(view)
         let image = view.imageRepresentation
         view.removeFromSuperview()
@@ -300,6 +309,7 @@ class RoadNameLabelAttachment: TextInstruction {
 }
 
 extension CGSize {
+    fileprivate static var greatestFiniteSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
     
     fileprivate static func +(lhs: CGSize, rhs: CGSize) -> CGSize {
         return CGSize(width: lhs.width + rhs.width, height: lhs.height +  rhs.height)

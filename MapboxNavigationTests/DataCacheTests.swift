@@ -1,5 +1,4 @@
 import XCTest
-import TestHelper
 @testable import MapboxNavigation
 
 
@@ -28,7 +27,7 @@ class DataCacheTests: XCTestCase {
 
     var exampleData: Data? {
         get {
-            let bundle = Bundle(for: Fixture.self)
+            let bundle = Bundle(for: InstructionsBannerViewIntegrationTests.self)
             do {
                 return try NSData.init(contentsOf: bundle.url(forResource: "route", withExtension: ".json")!) as Data
             } catch {
@@ -95,7 +94,7 @@ class DataCacheTests: XCTestCase {
     func testClearingMemoryCacheOnMemoryWarning() {
         storeDataInMemory()
 
-        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+        NotificationCenter.default.post(name: .UIApplicationDidReceiveMemoryWarning, object: nil)
 
         XCTAssertNil(cache.data(forKey: dataKey))
     }
@@ -105,7 +104,7 @@ class DataCacheTests: XCTestCase {
         tempCache?.clearMemory()
         tempCache = nil
 
-        NotificationCenter.default.post(name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
+        NotificationCenter.default.post(name: .UIApplicationDidReceiveMemoryWarning, object: nil)
     }
     
     func testCacheKeyForKey() {

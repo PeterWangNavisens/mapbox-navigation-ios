@@ -170,12 +170,13 @@ class InstructionsBannerViewIntegrationTests: XCTestCase {
         guard let attributed = view.primaryLabel.attributedText else { return XCTFail("No attributed string") }
         let stringRange = NSRange(location: 0, length: attributed.length)
         let foundAttachment = XCTestExpectation(description: "Attachment found")
-        attributed.enumerateAttribute(.attachment, in: stringRange, options: []) { (value, range, stop) in
+        attributed.enumerateAttribute(.attachment, in: stringRange, options: [],
+        using: { (value, range, stop) in
             guard let attachment = value else { return }
             foundAttachment.fulfill()
             XCTAssert(range == NSRange(location: 0, length: 1), "Unexpected Range:" + String(describing: range))
             XCTAssert(type(of: attachment) == GenericShieldAttachment.self, "Unexpected Attachment type:" + String(describing: attachment))
-        }
+        })
         wait(for: [foundAttachment], timeout: 0)
         
     }
@@ -314,7 +315,7 @@ class InstructionsBannerViewIntegrationTests: XCTestCase {
 
     private func simulateDownloadingShieldForComponent(_ component: VisualInstructionComponent) {
         let operation: ImageDownloadOperationSpy = ImageDownloadOperationSpy.operationForURL(component.imageURL!)!
-        operation.fireAllCompletions(ShieldImage.i280.image, data: ShieldImage.i280.image.pngData(), error: nil)
+        operation.fireAllCompletions(ShieldImage.i280.image, data: UIImagePNGRepresentation(ShieldImage.i280.image), error: nil)
 
         XCTAssertNotNil(imageRepository.cachedImageForKey(component.cacheKey!))
     }

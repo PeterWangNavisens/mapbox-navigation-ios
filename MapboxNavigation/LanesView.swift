@@ -5,7 +5,7 @@ import MapboxDirections
 /// :nodoc:
 @IBDesignable
 @objc(MBLanesView)
-open class LanesView: UIView, NavigationComponent {
+open class LanesView: UIView {
     weak var stackView: UIStackView!
     weak var separatorView: SeparatorView!
     
@@ -64,10 +64,6 @@ open class LanesView: UIView, NavigationComponent {
         separatorView.leadingAnchor.constraint(equalTo: leadingAnchor).isActive = true
         separatorView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
         separatorView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
-    }
-    
-    @objc public func navigationService(_ service: NavigationService, didPassVisualInstructionPoint instruction: VisualInstructionBanner, routeProgress: RouteProgress) {
-        update(for: instruction)
     }
     
     /**

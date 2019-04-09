@@ -5,60 +5,15 @@ import UIKit
 import AVFoundation
 import MapboxDirections
 
-protocol EventDetails: Encodable {
-    var event: String? { get }
-    var created: Date { get }
-    var sessionIdentifier: String { get }
-}
 
-struct PerformanceEventDetails: EventDetails {
-    let event: String?
-    let created: Date
-    let sessionIdentifier: String
-    var counters: [Counter] = []
-    var attributes: [Attribute] = []
-    
-    private enum CodingKeys: String, CodingKey {
-        case event
-        case created
-        case sessionIdentifier = "sessionId"
-        case counters
-        case attributes
-    }
-    
-    struct Counter: Encodable {
-        let name: String
-        let value: Double
-    }
-    
-    struct Attribute: Encodable {
-        let name: String
-        let value: String
-    }
-    
-    init(event: String?, session: SessionState, createdOn created: Date?) {
-        self.event = event
-        sessionIdentifier = session.identifier.uuidString
-        self.created = created ?? Date()
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(event, forKey: .event)
-        try container.encode(created.ISO8601, forKey: .created)
-        try container.encode(sessionIdentifier, forKey: .sessionIdentifier)
-        try container.encode(counters, forKey: .counters)
-        try container.encode(attributes, forKey: .attributes)
-    }
-}
-
-struct NavigationEventDetails: EventDetails {
+struct EventDetails: Encodable {
     
     let audioType: String = AVAudioSession.sharedInstance().audioType
-    let applicationState = UIApplication.shared.applicationState
+    let applicationState: UIApplicationState = UIApplication.shared.applicationState
     let batteryLevel: Int = UIDevice.current.batteryLevel >= 0 ? Int(UIDevice.current.batteryLevel * 100) : -1
     let batteryPluggedIn: Bool = [.charging, .full].contains(UIDevice.current.batteryState)
     let coordinate: CLLocationCoordinate2D?
+    let created: Date = Date()
     let device: String = UIDevice.current.machine
     let distance: CLLocationDistance?
     let distanceCompleted: CLLocationDistance
@@ -95,7 +50,6 @@ struct NavigationEventDetails: EventDetails {
     let legCount: Int
     let totalStepCount: Int
     
-    var created: Date = Date()
     var event: String?
     var arrivalTimestamp: Date?
     var rating: Int?
@@ -109,21 +63,22 @@ struct NavigationEventDetails: EventDetails {
     var newDurationRemaining: TimeInterval?
     var newGeometry: String?
     
-    init(dataSource: EventsManagerDataSource, session: SessionState, defaultInterface: Bool) {
-        coordinate = dataSource.router.rawLocation?.coordinate
+    init(router: Router, session: SessionState) {
+        
         startTimestamp = session.departureTimestamp ?? nil
-        sdkIdentifier = defaultInterface ? "mapbox-navigation-ui-ios" : "mapbox-navigation-ios"
-        profile = dataSource.routeProgress.route.routeOptions.profileIdentifier.rawValue
-        simulation = dataSource.locationProvider is SimulatedLocationManager.Type
+        sdkIdentifier = router.usesDefaultUserInterface ? "mapbox-navigation-ui-ios" : "mapbox-navigation-ios"
+        profile = router.routeProgress.route.routeOptions.profileIdentifier.rawValue
+        simulation = router.locationManager is ReplayLocationManager || router.locationManager is SimulatedLocationManager ? true : false
         
         sessionIdentifier = session.identifier.uuidString
         originalRequestIdentifier = session.originalRoute.routeIdentifier
-        requestIdentifier = dataSource.routeProgress.route.routeIdentifier
-                
-        if let location = dataSource.router.rawLocation,
-           let coordinates = dataSource.routeProgress.route.coordinates,
-           let lastCoord = coordinates.last {
-            userAbsoluteDistanceToDestination = location.distance(from: CLLocation(latitude: lastCoord.latitude, longitude: lastCoord.longitude))
+        requestIdentifier = router.routeProgress.route.routeIdentifier
+        
+        let location = router.locationManager.location
+        coordinate = location?.coordinate ?? nil
+        
+        if let coordinates = router.routeProgress.route.coordinates, let lastCoord = coordinates.last {
+            userAbsoluteDistanceToDestination = location?.distance(from: CLLocation(latitude: lastCoord.latitude, longitude: lastCoord.longitude)) ?? nil
         } else {
             userAbsoluteDistanceToDestination = nil
         }
@@ -150,15 +105,19 @@ struct NavigationEventDetails: EventDetails {
             estimatedDuration = nil
         }
         
-        distanceCompleted = round(session.totalDistanceCompleted + dataSource.routeProgress.distanceTraveled)
-        distanceRemaining = round(dataSource.routeProgress.distanceRemaining)
-        durationRemaining = round(dataSource.routeProgress.durationRemaining)
+        distanceCompleted = round(session.totalDistanceCompleted + router.routeProgress.distanceTraveled)
+        distanceRemaining = round(router.routeProgress.distanceRemaining)
+        durationRemaining = round(router.routeProgress.durationRemaining)
         
         rerouteCount = session.numberOfReroutes
         
-        locationEngine = String(describing: dataSource.locationProvider)
-        locationManagerDesiredAccuracy = dataSource.desiredAccuracy
-        
+        if let manager = router.locationManager {
+            locationEngine = String(describing: manager)
+            locationManagerDesiredAccuracy = manager.desiredAccuracy
+        } else {
+            locationEngine = nil
+            locationManagerDesiredAccuracy = nil
+        }
         
         var totalTimeInPortrait = session.timeSpentInPortrait
         var totalTimeInLandscape = session.timeSpentInLandscape
@@ -179,11 +138,11 @@ struct NavigationEventDetails: EventDetails {
         percentTimeInForeground = totalTimeInPortrait + totalTimeInLandscape == 0 ? 100 : Int((totalTimeInPortrait / (totalTimeInPortrait + totalTimeInLandscape) * 100))
         
         
-        stepIndex = dataSource.routeProgress.currentLegProgress.stepIndex
-        stepCount = dataSource.routeProgress.currentLeg.steps.count
-        legIndex = dataSource.routeProgress.legIndex
-        legCount = dataSource.routeProgress.route.legs.count
-        totalStepCount = dataSource.routeProgress.route.legs.map { $0.steps.count }.reduce(0, +)
+        stepIndex = router.routeProgress.currentLegProgress.stepIndex
+        stepCount = router.routeProgress.currentLeg.steps.count
+        legIndex = router.routeProgress.legIndex
+        legCount = router.routeProgress.route.legs.count
+        totalStepCount = router.routeProgress.route.legs.map { $0.steps.count }.reduce(0, +)
     }
     
     private enum CodingKeys: String, CodingKey {
@@ -317,10 +276,10 @@ extension RouteLegProgress: Encodable {
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(upcomingStep?.instructions, forKey: .upcomingInstruction)
-        try container.encodeIfPresent(upcomingStep?.maneuverType.description, forKey: .upcomingType)
-        try container.encodeIfPresent(upcomingStep?.maneuverDirection.description, forKey: .upcomingModifier)
-        try container.encodeIfPresent(upcomingStep?.names?.joined(separator: ";"), forKey: .upcomingName)
+        try container.encodeIfPresent(upComingStep?.instructions, forKey: .upcomingInstruction)
+        try container.encodeIfPresent(upComingStep?.maneuverType.description, forKey: .upcomingType)
+        try container.encodeIfPresent(upComingStep?.maneuverDirection.description, forKey: .upcomingModifier)
+        try container.encodeIfPresent(upComingStep?.names?.joined(separator: ";"), forKey: .upcomingName)
         try container.encodeIfPresent(currentStep.instructions, forKey: .previousInstruction)
         try container.encode(currentStep.maneuverType.description, forKey: .previousType)
         try container.encode(currentStep.maneuverDirection.description, forKey: .previousModifier)
@@ -332,11 +291,12 @@ extension RouteLegProgress: Encodable {
     }
 }
 
-enum EventDetailsError: Error {
-    case EncodingError(String)
-}
-
 extension EventDetails {
+    
+    enum EventDetailsError: Error {
+        case EncodingError(String)
+    }
+    
     func asDictionary() throws -> [String: Any] {
         let data = try JSONEncoder().encode(self)
         if let dictionary = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] {
@@ -345,9 +305,13 @@ extension EventDetails {
             throw EventDetailsError.EncodingError("Failed to encode event details")
         }
     }
+    
+    static func defaultEvents(router: Router) -> EventDetails {
+        return EventDetails(router: router, session: router.eventsManager.sessionState)
+    }
 }
 
-extension UIApplication.State: Encodable {
+extension UIApplicationState: Encodable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         let stringRepresentation: String
@@ -365,15 +329,42 @@ extension UIApplication.State: Encodable {
 
 extension AVAudioSession {
     var audioType: String {
-        if currentRoute.outputs.contains(where: { [.bluetoothA2DP, .bluetoothHFP, .bluetoothLE].contains($0.portType) }) {
+        if isOutputBluetooth() {
             return "bluetooth"
         }
-        if currentRoute.outputs.contains(where: { [.headphones, .airPlay, .HDMI, .lineOut, .carAudio, .usbAudio].contains($0.portType) }) {
+        if isOutputHeadphones() {
             return "headphones"
         }
-        if currentRoute.outputs.contains(where: { [.builtInSpeaker, .builtInReceiver].contains($0.portType) }) {
+        if isOutputSpeaker() {
             return "speaker"
         }
         return "unknown"
+    }
+    
+    func isOutputBluetooth() -> Bool {
+        for output in currentRoute.outputs {
+            if [AVAudioSessionPortBluetoothA2DP, AVAudioSessionPortBluetoothLE].contains(output.portType) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func isOutputHeadphones() -> Bool {
+        for output in currentRoute.outputs {
+            if [AVAudioSessionPortHeadphones, AVAudioSessionPortAirPlay, AVAudioSessionPortHDMI, AVAudioSessionPortLineOut].contains(output.portType) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func isOutputSpeaker() -> Bool {
+        for output in currentRoute.outputs {
+            if [AVAudioSessionPortBuiltInSpeaker, AVAudioSessionPortBuiltInReceiver].contains(output.portType) {
+                return true
+            }
+        }
+        return false
     }
 }

@@ -48,6 +48,7 @@ class EndOfRouteViewController: UIViewController {
     
     // MARK: - Properties
     lazy var placeholder: String = NSLocalizedString("END_OF_ROUTE_TITLE", bundle: .mapboxNavigation, value: "How can we improve?", comment: "Comment Placeholder Text")
+    lazy var endNavigation: String = NSLocalizedString("END_NAVIGATION", bundle: .mapboxNavigation, value: "End Navigation", comment: "End Navigation Button Text")
     
     typealias DismissHandler = ((Int, String?) -> Void)
     var dismissHandler: DismissHandler?

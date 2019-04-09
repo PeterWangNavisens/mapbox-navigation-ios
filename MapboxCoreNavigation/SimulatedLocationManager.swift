@@ -27,14 +27,11 @@ fileprivate class SimulatedLocation: CLLocation {
  
  The route will be replaced upon a `RouteControllerDidReroute` notification.
  */
-
 @objc(MBSimulatedLocationManager)
 open class SimulatedLocationManager: NavigationLocationManager {
-    internal var currentDistance: CLLocationDistance = 0
+    fileprivate var currentDistance: CLLocationDistance = 0
+    fileprivate var currentLocation = CLLocation()
     fileprivate var currentSpeed: CLLocationSpeed = 30
-    fileprivate let accuracy: DispatchTimeInterval = .milliseconds(50)
-    let updateInterval: DispatchTimeInterval = .milliseconds(1000)
-    fileprivate var timer: DispatchTimer!
     
     fileprivate var locations: [SimulatedLocation]!
     fileprivate var routeLine = [CLLocationCoordinate2D]()
@@ -43,14 +40,14 @@ open class SimulatedLocationManager: NavigationLocationManager {
      Specify the multiplier to use when calculating speed based on the RouteLeg’s `expectedSegmentTravelTimes`.
      */
     @objc public var speedMultiplier: Double = 1
-    fileprivate var simulatedLocation: CLLocation?
-    @objc override open var location: CLLocation? {
+    
+    @objc public override var location: CLLocation? {
         get {
-            return simulatedLocation
+            return currentLocation
         }
-        set {
-            simulatedLocation = newValue
-        }
+      set{
+        
+      }
     }
     
     var route: Route? {
@@ -59,18 +56,7 @@ open class SimulatedLocationManager: NavigationLocationManager {
         }
     }
     
-    open override func copy() -> Any {
-        let copy = SimulatedLocationManager(route: route!)
-        copy.currentDistance = currentDistance
-        copy.simulatedLocation = simulatedLocation
-        copy.currentSpeed = currentSpeed
-        copy.locations = locations
-        copy.routeLine = routeLine
-        copy.speedMultiplier = speedMultiplier
-        return copy
-    }
-    
-    private var routeProgress: RouteProgress?
+    var routeProgress: RouteProgress?
     
     /**
      Initalizes a new `SimulatedLocationManager` with the given route.
@@ -80,7 +66,7 @@ open class SimulatedLocationManager: NavigationLocationManager {
      */
     @objc public init(route: Route) {
         super.init()
-        commonInit(for: route, currentDistance: 0, currentSpeed: 30)
+        initializeSimulatedLocationManager(for: route, currentDistance: 0, currentSpeed: 30)
     }
 
     /**
@@ -92,19 +78,16 @@ open class SimulatedLocationManager: NavigationLocationManager {
     @objc public init(routeProgress: RouteProgress) {
         super.init()
         let currentDistance = calculateCurrentDistance(routeProgress.distanceTraveled)
-        commonInit(for: routeProgress.route, currentDistance: currentDistance, currentSpeed: 0)
+        initializeSimulatedLocationManager(for: routeProgress.route, currentDistance: currentDistance, currentSpeed: 0)
     }
 
-    private func commonInit(for route: Route, currentDistance: CLLocationDistance, currentSpeed: CLLocationSpeed) {
+    private func initializeSimulatedLocationManager(for route: Route, currentDistance: CLLocationDistance, currentSpeed: CLLocationSpeed) {
         
         self.currentSpeed = currentSpeed
         self.currentDistance = currentDistance
         self.route = route
-
-        self.timer = DispatchTimer(countdown: .milliseconds(0), repeating: updateInterval, accuracy: accuracy, executingOn: .main) { [weak self] in
-            self?.tick()
-        }
         
+        NotificationCenter.default.addObserver(self, selector: #selector(didReroute(_:)), name: .routeControllerDidReroute, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(progressDidChange(_:)), name: .routeControllerProgressDidChange, object: nil)
     }
     
@@ -123,20 +106,32 @@ open class SimulatedLocationManager: NavigationLocationManager {
         routeProgress = notification.userInfo![RouteControllerNotificationUserInfoKey.routeProgressKey] as? RouteProgress
     }
     
+    @objc private func didReroute(_ notification: Notification) {
+        guard let routeController = notification.object as? RouteController else {
+            return
+        }
+        
+        route = routeController.routeProgress.route
+    }
     
     deinit {
+        NotificationCenter.default.removeObserver(self, name: .routeControllerDidReroute, object: nil)
         NotificationCenter.default.removeObserver(self, name: .routeControllerProgressDidChange, object: nil)
     }
     
     override open func startUpdatingLocation() {
-        timer.arm()
+        DispatchQueue.main.async(execute: tick)
     }
     
     override open func stopUpdatingLocation() {
-        timer.disarm()
+        DispatchQueue.main.async {
+            NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(self.tick), object: nil)
+        }
     }
     
-    @objc internal func tick() {
+    @objc fileprivate func tick() {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(tick), object: nil)
+        
         let polyline = Polyline(routeLine)
         
         guard let newCoordinate = polyline.coordinateFromStart(distance: currentDistance) else {
@@ -172,11 +167,12 @@ open class SimulatedLocationManager: NavigationLocationManager {
                                   course: newCoordinate.direction(to: lookAheadCoordinate).wrap(min: 0, max: 360),
                                   speed: currentSpeed,
                                   timestamp: Date())
-        
-        self.simulatedLocation = location
-        
-        delegate?.locationManager?(self, didUpdateLocations: [location])
+        currentLocation = location
+        lastKnownLocation = location
+    
+      delegate?.locationManager(self, didUpdate: [currentLocation])
         currentDistance = calculateCurrentDistance(currentDistance)
+        perform(#selector(tick), with: nil, afterDelay: 1)
     }
     
     private func calculateCurrentSpeed(distance: CLLocationDistance, coordinatesNearby: [CLLocationCoordinate2D]? = nil, closestLocation: SimulatedLocation) -> CLLocationSpeed {

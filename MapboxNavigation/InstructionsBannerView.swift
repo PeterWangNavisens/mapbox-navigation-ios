@@ -18,17 +18,6 @@ public protocol InstructionsBannerViewDelegate: class {
     /**
      Called when the user drags either up or down on the `InstructionsBannerView`.
      */
-    @available(*, deprecated, message: "Please use didSwipeInstructionsBanner instead.")
-    @objc(didDragInstructionsBanner:)
-    optional func didDragInstructionsBanner(_ sender: BaseInstructionsBannerView)
-    
-    /**
-     Called when the user swipes either left, right, or down on the `InstructionsBannerView`
-     */
-    @objc optional func didSwipeInstructionsBanner(_ sender: BaseInstructionsBannerView, swipeDirection direction: UISwipeGestureRecognizer.Direction)
-}
-
-@objc private protocol InstructionsBannerViewDelegateDeprecations {
     @objc(didDragInstructionsBanner:)
     optional func didDragInstructionsBanner(_ sender: BaseInstructionsBannerView)
 }
@@ -36,39 +25,22 @@ public protocol InstructionsBannerViewDelegate: class {
 /// :nodoc:
 @IBDesignable
 @objc(MBInstructionsBannerView)
-open class InstructionsBannerView: BaseInstructionsBannerView, NavigationComponent {
-    @objc public func navigationService(_ service: NavigationService, didPassVisualInstructionPoint instruction: VisualInstructionBanner, routeProgress: RouteProgress) {
-        update(for: instruction)
-    }
-}
+open class InstructionsBannerView: BaseInstructionsBannerView { }
 
 /// :nodoc:
 open class BaseInstructionsBannerView: UIControl {
     
-    public weak var maneuverView: ManeuverView!
-    public weak var primaryLabel: PrimaryLabel!
-    public weak var secondaryLabel: SecondaryLabel!
-    public weak var distanceLabel: DistanceLabel!
-    public weak var dividerView: UIView!
+    weak var maneuverView: ManeuverView!
+    weak var primaryLabel: PrimaryLabel!
+    weak var secondaryLabel: SecondaryLabel!
+    weak var distanceLabel: DistanceLabel!
+    weak var dividerView: UIView!
     weak var _separatorView: UIView!
-    public weak var separatorView: SeparatorView!
-    public weak var stepListIndicatorView: StepListIndicatorView!
-    
-    @IBInspectable
-    public var swipeable: Bool = false
-    
-    @IBInspectable
-    public var showStepIndicator: Bool = true {
-        didSet {
-            stepListIndicatorView.isHidden = !showStepIndicator
-        }
-    }
-    
+    weak var separatorView: SeparatorView!
+    weak var stepListIndicatorView: StepListIndicatorView!
     public weak var delegate: InstructionsBannerViewDelegate? {
         didSet {
-            if showStepIndicator {
-               stepListIndicatorView.isHidden = false
-            }
+            stepListIndicatorView.isHidden = false
         }
     }
     
@@ -84,7 +56,7 @@ open class BaseInstructionsBannerView: UIControl {
     
     let distanceFormatter = DistanceFormatter(approximate: true)
     
-    public var distance: CLLocationDistance? {
+    var distance: CLLocationDistance? {
         didSet {
             distanceLabel.attributedDistanceString = nil
             
@@ -96,7 +68,7 @@ open class BaseInstructionsBannerView: UIControl {
         }
     }
     
-    public override init(frame: CGRect) {
+    override init(frame: CGRect) {
         super.init(frame: frame)
         commonInit()
     }
@@ -111,51 +83,19 @@ open class BaseInstructionsBannerView: UIControl {
         setupLayout()
         centerYAlignInstructions()
         setupAvailableBounds()
-        stepListIndicatorView.isHidden = !showStepIndicator
+        stepListIndicatorView.isHidden = true
     }
     
-    @objc func swipedInstructionBannerLeft(_ sender: Any) {
-        if !swipeable {
-            return
-        }
-
-        if let gestureRecognizer = sender as? UISwipeGestureRecognizer, gestureRecognizer.state == .ended {
-            if let delegate = delegate {
-                delegate.didSwipeInstructionsBanner?(self, swipeDirection: .left)
-            }
+    @objc func draggedInstructionsBanner(_ sender: Any) {
+        if let gestureRecognizer = sender as? UIPanGestureRecognizer, gestureRecognizer.state == .ended, let delegate = delegate {
+            stepListIndicatorView.isHidden = !stepListIndicatorView.isHidden
+            delegate.didDragInstructionsBanner?(self)
         }
     }
     
-    @objc func swipedInstructionBannerRight(_ sender: Any) {
-        if !swipeable {
-            return
-        }
-        
-        if let gestureRecognizer = sender as? UISwipeGestureRecognizer, gestureRecognizer.state == .ended {
-            if let delegate = delegate {
-                delegate.didSwipeInstructionsBanner?(self, swipeDirection: .right)
-            }
-        }
-    }
-    
-    @objc func swipedInstructionBannerDown(_ sender: Any) {
-        if let gestureRecognizer = sender as? UISwipeGestureRecognizer, gestureRecognizer.state == .ended {
-            if showStepIndicator {
-               stepListIndicatorView.isHidden = !stepListIndicatorView.isHidden
-            }
-            
-            if let delegate = delegate {
-                delegate.didSwipeInstructionsBanner?(self, swipeDirection: .down)
-                (delegate as? InstructionsBannerViewDelegateDeprecations)?.didDragInstructionsBanner?(self)
-            }
-        }
-    }
-        
     @objc func tappedInstructionsBanner(_ sender: Any) {
         if let delegate = delegate {
-            if showStepIndicator {
-                stepListIndicatorView.isHidden = !stepListIndicatorView.isHidden
-            }
+            stepListIndicatorView.isHidden = !stepListIndicatorView.isHidden
             delegate.didTapInstructionsBanner?(self)
         }
     }

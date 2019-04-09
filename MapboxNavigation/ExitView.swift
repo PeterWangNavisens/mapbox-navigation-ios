@@ -8,13 +8,13 @@ enum ExitSide: String{
     }
 }
 
-public class ExitView: StylableView {
+class ExitView: StylableView {
     static let leftExitImage = UIImage(named: "exit-left", in: .mapboxNavigation, compatibleWith: nil)!.withRenderingMode(.alwaysTemplate)
     static let rightExitImage = UIImage(named: "exit-right", in: .mapboxNavigation, compatibleWith: nil)!.withRenderingMode(.alwaysTemplate)
     
     static let labelFontSizeScaleFactor: CGFloat = 2.0/3.0
     
-    @objc public dynamic var foregroundColor: UIColor? {
+    @objc dynamic var foregroundColor: UIColor? {
         didSet {
             layer.borderColor = foregroundColor?.cgColor
             imageView.tintColor = foregroundColor
@@ -77,12 +77,12 @@ public class ExitView: StylableView {
         commonInit()
     }
     
-    override public init(frame: CGRect) {
+    override init(frame: CGRect) {
         pointSize = 0.0
         super.init(frame: frame)
     }
     
-    required public init?(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         pointSize = 0.0        
         super.init(coder: aDecoder)
         commonInit()

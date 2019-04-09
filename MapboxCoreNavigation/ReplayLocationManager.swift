@@ -26,15 +26,14 @@ open class ReplayLocationManager: NavigationLocationManager {
             currentIndex = 0
         }
     }
-    private var synthesizedLocation: CLLocation?
-
-    @objc override open var location: CLLocation? {
+    
+    @objc public override var location: CLLocation? {
         get {
-            return synthesizedLocation
+            return lastKnownLocation
         }
-        set {
-            synthesizedLocation = newValue
-        }
+      set{
+        
+      }
     }
     
     public init(locations: [CLLocation]) {
@@ -56,11 +55,13 @@ open class ReplayLocationManager: NavigationLocationManager {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(tick), object: nil)
     }
     
-    @objc internal func tick() {
+    @objc fileprivate func tick() {
         guard let startDate = startDate else { return }
         let location = locations[currentIndex]
-        synthesizedLocation = location
-        delegate?.locationManager?(self, didUpdateLocations: [location])
+        lastKnownLocation = location
+      
+      
+        delegate?.locationManager(self, didUpdate: [location])
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(tick), object: nil)
         
         if currentIndex < locations.count - 1 {

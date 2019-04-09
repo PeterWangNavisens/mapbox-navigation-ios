@@ -109,6 +109,11 @@ internal class FileCache {
         }
     }
 
+    func cachePathWithKey(_ key: String) -> String {
+        let cacheKey = cacheKeyForKey(key)
+        return cacheURLWithKey(cacheKey).absoluteString
+    }
+
     func cacheURLWithKey(_ key: String) -> URL {
         let cacheKey = cacheKeyForKey(key)
         return diskCacheURL.appendingPathComponent(cacheKey)

@@ -1,17 +1,18 @@
 import XCTest
 import CoreLocation
+import Turf
 @testable import MapboxCoreNavigation
-@testable import TestHelper
 
 class LocationTests: XCTestCase {
     
     var setup: (progress: RouteProgress, firstLocation: CLLocation) {
         let progress = RouteProgress(route: route)
-        let firstCoord = progress.nearbyCoordinates.first!
+        let firstCoord = progress.currentLegProgress.nearbyCoordinates.first!
         let firstLocation = CLLocation(latitude: firstCoord.latitude, longitude: firstCoord.longitude)
         
         return (progress, firstLocation)
     }
+    
     
     func testSerializeAndDeserializeLocation() {
         let coordinate = CLLocationCoordinate2D(latitude: 1.1, longitude: 2.2)
@@ -20,35 +21,41 @@ class LocationTests: XCTestCase {
         let horizontalAccuracy: CLLocationAccuracy = 5.5
         let verticalAccuracy: CLLocationAccuracy = 6.6
         let course: CLLocationDirection = 7.7
-        let timestamp = Date()
+        let timestamp = Date().ISO8601
         
-        let location = CLLocation(coordinate: coordinate, altitude: altitude, horizontalAccuracy: horizontalAccuracy, verticalAccuracy: verticalAccuracy, course: course, speed: speed, timestamp: timestamp)
+        var locationDictionary:[String: Any] = [:]
+        locationDictionary["lat"] = coordinate.latitude
+        locationDictionary["lng"] = coordinate.longitude
+        locationDictionary["altitude"] = altitude
+        locationDictionary["timestamp"] = timestamp
+        locationDictionary["horizontalAccuracy"] = horizontalAccuracy
+        locationDictionary["verticalAccuracy"] = verticalAccuracy
+        locationDictionary["course"] = course
+        locationDictionary["speed"] = speed
         
-        let encoded = try! JSONEncoder().encode(Location(location))
-        let decoded = CLLocation(try! JSONDecoder().decode(Location.self, from: encoded))
+        let location = CLLocation(dictionary: locationDictionary)
         
-        XCTAssertEqual(decoded.coordinate.latitude, coordinate.latitude)
-        XCTAssertEqual(decoded.coordinate.longitude, coordinate.longitude)
-        XCTAssertEqual(decoded.altitude, altitude)
-        XCTAssertEqual(decoded.speed, speed)
-        XCTAssertEqual(decoded.horizontalAccuracy, horizontalAccuracy)
-        XCTAssertEqual(decoded.verticalAccuracy, verticalAccuracy)
-        XCTAssertEqual(decoded.course, course)
-        XCTAssertEqual(decoded.timestamp.timeIntervalSince1970, timestamp.timeIntervalSince1970, accuracy: 0.01)
+        let lhs = locationDictionary as NSDictionary
+        let rhs = location.dictionaryRepresentation as NSDictionary
+        
+        XCTAssert(lhs == rhs)
     }
     
-    func testSnappedLocation100MetersAlongRoute() {
+    func testSnappedLocationShouldBeInFrontOfUser() {
         let progress = setup.progress
-        let firstLocation = setup.firstLocation
         
         let initialHeadingOnFirstStep = progress.currentLegProgress.currentStep.finalHeading!
-        let coordinateAlongFirstStep = firstLocation.coordinate.coordinate(at: 100, facing: initialHeadingOnFirstStep)
-        let locationAlongFirstStep = CLLocation(latitude: coordinateAlongFirstStep.latitude, longitude: coordinateAlongFirstStep.longitude)
-        guard let snapped = locationAlongFirstStep.snapped(to: progress) else {
+        let coordinateAlongFirstStep = Polyline(progress.currentLegProgress.nearbyCoordinates).coordinateFromStart(distance: 100)!
+        let locationAlongFirstStep = CLLocation(coordinate: coordinateAlongFirstStep, altitude: 0, horizontalAccuracy: 1, verticalAccuracy: 0, course: initialHeadingOnFirstStep, speed: 10, timestamp: Date())
+        guard let snapped = locationAlongFirstStep.snapped(to: progress.currentLegProgress) else {
             return XCTFail("Location should have snapped to route")
         }
         
-        XCTAssertTrue(locationAlongFirstStep.distance(from: snapped) < 1, "The location is less than 1 meter away from the calculated snapped location")
+        let distanceBetweenRealAndSnappedLocation = locationAlongFirstStep.distance(from: snapped)
+    
+
+        XCTAssertEqual(round(distanceBetweenRealAndSnappedLocation), 10, "The snapped location is 10 meters ahead of the user because they are moving.")
+ 
     }
     
     func testInterpolatedCourse() {

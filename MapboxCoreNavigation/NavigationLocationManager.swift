@@ -11,9 +11,10 @@ import Mapbox
 /**
  `NavigationLocationManager` is the base location manager which handles permissions and background modes.
  */
-@objc public
+public
  protocol NavigationLocationManagerProtocol : MGLLocationManager {
 
+    
   var activityType:CLActivityType {get set } //add set for route controller
   
   //for navigation location manager

@@ -14,6 +14,8 @@ import Turf
  */
 @objc(MBRouteController)
 open class RouteController: NSObject, Router {
+    public var eventsManager: EventsManager!
+    
 
     /**
      The route controller’s delegate.
@@ -23,7 +25,7 @@ open class RouteController: NSObject, Router {
     /**
      The route controller’s associated location manager.
      */
-    @objc public var locationManager: NavigationLocationManagerProtocol! {
+    public var locationManager: NavigationLocationManagerProtocol! {
         didSet {
             oldValue.delegate = nil
             locationManager.navDelegate = self
@@ -94,7 +96,7 @@ open class RouteController: NSObject, Router {
         }
     }
     
-    public var eventsManager: EventsManager
+    //public var eventsManager: EventsManager
 
     var hasFoundOneQualifiedLocation = false
 
@@ -118,7 +120,7 @@ open class RouteController: NSObject, Router {
      - parameter directions: The Directions object that created `route`.
      - parameter locationManager: The associated location manager.
      */
-    @objc(initWithRoute:directions:locationManager:eventsManager:)
+    //@objc(initWithRoute:directions:locationManager:eventsManager:)
     public init(along route: Route, directions: Directions = Directions.shared, locationManager: NavigationLocationManagerProtocol, eventsManager eventsOverride: EventsManager? = nil) {
         self.directions = directions
         self.routeProgress = RouteProgress(route: route)
